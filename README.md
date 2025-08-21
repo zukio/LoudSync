@@ -58,13 +58,13 @@ Measure the loudness (LUFS)/peak of multiple audio files and batch normalize the
 
 ## 依存関係
 
+[ffmpeg](https://www.ffmpeg.org/) をインストールしてください。
+
 ### ffmpeg 解決順
 
 1. **環境変数 PATH の ffmpeg** を優先
 2. 見つからなければ **同梱 `bin\ffmpeg.exe`** を使用
 3. どちらも無ければエラー終了（メッセージ表示）
-
-メモ：bin\ffmpeg.exe を同梱すれば PATH 未設定の端末でもそのまま動きます。ライセンス文（FFmpegのLICENSE/入手元）も同梱してください。
 
 ### ライセンス配慮
 

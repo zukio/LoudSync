@@ -165,3 +165,4 @@ backup/
 sample/
 *config.json
 loudness_measurement.csv
+bin/
