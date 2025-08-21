@@ -1,0 +1,5 @@
+FFmpeg License
+
+This file should contain the license information for ffmpeg.exe used in this project.
+
+For details, see: https://ffmpeg.org/legal.html
