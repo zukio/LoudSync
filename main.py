@@ -128,16 +128,16 @@ class LoudSyncGUI:
         mode_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=5)
         ttk.Radiobutton(mode_frame, text="測定のみ", variable=self.mode_var,
                         value="measure", command=self.on_mode_change).pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(mode_frame, text="正規化", variable=self.mode_var,
+        ttk.Radiobutton(mode_frame, text="レベルをそろえる", variable=self.mode_var,
                         value="normalize", command=self.on_mode_change).pack(side=tk.LEFT, padx=5)
         row += 1
 
         # Preset selection
-        self.preset_label = ttk.Label(main_frame, text="プリセット:")
+        self.preset_label = ttk.Label(main_frame, text="基準のレベル:")
         self.preset_label.grid(row=row, column=0, sticky=tk.W, pady=5)
         preset_values = ["-16", "-18", "-19", "-20", "-23", "reffile"]
         preset_labels = ["-16 (ポッドキャスト)", "-18 (BGM)", "-19 (BGM)",
-                         "-20 (BGM)", "-23 (放送)", "reffile (参照ファイル)"]
+                         "-20 (BGM)", "-23 (放送)", "参照ファイルに合わせる"]
         self.preset_combo = ttk.Combobox(main_frame, textvariable=self.preset_var,
                                          values=preset_labels,
                                          state="readonly", width=47)
