@@ -13,27 +13,11 @@ PowerShellスクリプトから変換されたPython版のLoudSyncです。複�
 - **タスクトレイ**: システムトレイでのバックグラウンド実行
 - **多重起動防止**: 同一ディレクトリでの重複実行防止
 
-## 必要環境
+## Installation
 
-- Python 3.8以降
-- FFmpeg（システムPATHまたは`bin/ffmpeg.exe`）
-- Windows 10以降
-
-## インストール
-
-1. 依存パッケージのインストール:
-
-```bash
-pip install aioconsole Pillow pystray
-```
-
-2. FFmpegの設置:
-   - システムPATHにffmpegを追加、または
-   - `bin/ffmpeg.exe`として同梱
+Release版のバイナリは [Releases](https://github.com/zukio/LoudSync/releases/) からダウンロードできます。
 
 ## 使用方法
-
-### GUIモード
 
 ### GUIモード
 
@@ -113,6 +97,26 @@ file,integrated_lufs,loudness_range,true_peak_dbtp,status
 audio1.wav,-12.84,11.0,1.28,OK
 audio2.wav,-58.28,8.1,-42.76,OK
 ```
+
+## 開発
+
+### 必要環境
+
+- Python 3.8以降
+- FFmpeg（システムPATHまたは`bin/ffmpeg.exe`）
+- Windows 10以降
+
+### 開発環境のセットアップ
+
+1. 依存パッケージのインストール:
+
+```bash
+pip install aioconsole Pillow pystray
+```
+
+2. FFmpegの設置:
+   - システムPATHにffmpegを追加、または
+   - `bin/ffmpeg.exe`として同梱
 
 ## エラー処理
 
