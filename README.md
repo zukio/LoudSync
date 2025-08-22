@@ -1,8 +1,8 @@
-# LoudSync Suite (フェード/クロスフェード統合版)
+# LoudSync Suite (フェード機能統合版)
 
 **Audio Loudness Normalization Tool with Fade/Crossfade Integration**
 
-PowerShellスクリプトから変換されたPython版のLoudSyncに、フェードイン/アウトおよびクロスフェード連結機能を統合したツールです。複数の音声ファイルのラウドネス（LUFS）/ピークを計測し、指定プリセットまたは参照ファイルに合わせて正規化→フェード→クロスフェードの一括パイプラインを実行できます。
+複数の音声ファイルのレベル（ラウドネス/ピーク）を計測し、指定プリセットまたは参照ファイルに合わせて同一レベルに揃えます。Suite版はフェードイン/アウト機能を統合したツールです。
 
 ## 新機能（v2.0）
 
@@ -16,46 +16,32 @@ PowerShellスクリプトから変換されたPython版のLoudSyncに、フェ�
 ## 機能
 
 ### 正規化 (Normalize)
+
 - **ラウドネス測定**: LUFS/TP/LRA値の測定とCSV出力
 - **音声正規化**: EBU R128準拠の1パス/2パス正規化
 - **プリセット選択**: ポッドキャスト、BGM、放送用など
 - **参照ファイル**: 指定ファイルと同じラウドネスに調整
 
 ### フェード (Fade)
+
 - **フェードイン**: 指定ミリ秒でのフェードイン効果
 - **フェードアウト**: 指定ミリ秒でのフェードアウト効果
 - **開始位置制御**: 末尾からの秒数指定または絶対位置指定
 - **一括処理**: 複数ファイルの同時フェード処理
 
-### クロスフェード (Crossfade)
-- **多段連結**: 2ファイル以上の順次クロスフェード連結
-- **オーバーラップ制御**: 重複時間の細かい調整
-- **カーブ選択**: tri/qsin/esin/hsin/log/ipar等の多彩なカーブ
-- **順序変更**: ドラッグで再生順序を調整
-
 ### システム機能
+
 - **タスクトレイ**: システムトレイでのバックグラウンド実行
 - **多重起動防止**: 同一ディレクトリでの重複実行防止
 - **設定保存**: GUI設定の自動保存・復元
 
 ## Installation
 
-### バイナリ版
 Release版のバイナリは [Releases](https://github.com/zukio/LoudSync/releases/) からダウンロードできます。
 
-### ソースコード版
-```bash
-# 必要な依存関係をインストール
-pip install -r requirements.txt
-
-# GUIモードで実行
-python main.py
-
-# または
-python main.py --gui
-```
-
 ## 使用方法
+
+![LoudSync GUI Interface](assets/image.png)
 
 ### GUIモード（推奨）
 
@@ -69,34 +55,6 @@ python main.py --gui
 
 ### コマンドラインモード
 
-#### パイプライン実行
-```bash
-# 一括パイプライン（正規化→フェード→書き出し）
-python main.py pipeline input_dir output.mp3 --preset podcast
-
-# BGMプリセットで実行
-python main.py pipeline bgm_files final_mix.wav --preset bgm
-```
-
-#### フェード処理
-```bash
-# 複数ファイルにフェード適用
-python main.py fade file1.wav file2.wav --output-dir faded_output --fade-in 500 --fade-out 2000
-
-# コーデック指定
-python main.py fade *.mp3 --output-dir output --codec libmp3lame
-```
-
-#### クロスフェード連結
-```bash
-# 複数ファイルをクロスフェードで連結
-python main.py crossfade song1.wav song2.wav song3.wav --output mix.mp3 --overlap 3.0
-
-# カーブとコーデック指定
-python main.py crossfade *.wav --output final.wav --overlap 2.5 --curve qsin --codec pcm_s16le
-```
-
-#### 旧LoudSync互換
 ```bash
 # インタラクティブモード（プリセット選択）
 python main.py --cli
@@ -106,7 +64,14 @@ python main.py --mode measure
 
 # プリセット指定での正規化
 python main.py --preset -16
+
+# 複数ファイルにフェード適用
+python main.py fade file1.wav file2.wav --output-dir faded_output --fade-in 500 --fade-out 2000
+
+# コーデック指定
+python main.py fade *.mp3 --output-dir output --codec libmp3lame
 ```
+
 - `--out-ext`: 出力形式（wav, mp3, m4a）
 - `--sample-rate`: サンプリング周波数（44100, 48000, 96000）
 - `--two-pass`: 2パス正規化（デフォルト有効）
@@ -130,16 +95,22 @@ python main.py --preset -16
 
 ```json
 {
-    "input-dir": ".",
-    "output-dir": "normalized",
-    "out-ext": "wav",
-    "sample-rate": 48000,
-    "mode": "normalize",
-    "preset": "interactive",
-    "two-pass": true,
-    "overwrite": false,
-    "no-console": false,
-    "single-instance-only": true
+ "input_directory": "samples",
+ "output_directory": "normalized",
+ "mode": {
+  "measure_only": false,
+  "normalize": true
+ },
+ "preset_index": 0,
+ "preset_name": "ポッドキャスト (-16 LUFS)",
+ "output_format": "WAV",
+ "saved_at": "./",
+ "window_geometry": {
+  "x": 232,
+  "y": 290,
+  "width": 1000,
+  "height": 700
+ }
 }
 ```
 
@@ -169,7 +140,14 @@ audio2.wav,-58.28,8.1,-42.76,OK
 1. 依存パッケージのインストール:
 
 ```bash
-pip install aioconsole Pillow pystray
+# 必要な依存関係をインストール
+pip install -r requirements.txt
+
+# GUIモードで実行
+python main.py
+
+# または
+python main.py --gui
 ```
 
 2. FFmpegの設置:
