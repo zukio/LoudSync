@@ -1,4 +1,4 @@
-# LoudSync Suite (フェード機能統合版)
+# LoudSync Suite
 
 **Audio Loudness Normalization Tool with Fade/Crossfade Integration**
 
