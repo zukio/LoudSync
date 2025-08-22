@@ -1,0 +1,83 @@
+# LoudSync Suite Configuration File
+# フェード/クロスフェード統合版 LoudSync 設定ファイル
+
+# 正規化設定
+normalize:
+  preset: "podcast"  # podcast, bgm, broadcast
+  lufs: -16.0        # Target LUFS
+  tp: -1.5           # True Peak (dBTP)
+  two_pass: true     # 2パス正規化（高精度）
+
+# フェード設定
+fade:
+  enabled: false     # フェード処理を有効にする
+  in_ms: 300         # フェードイン時間（ミリ秒）
+  out_ms: 1500       # フェードアウト時間（ミリ秒）
+  from_end_sec: 2.0  # フェードアウト開始位置（末尾からの秒数）
+
+# クロスフェード設定
+crossfade:
+  enabled: false     # クロスフェード処理を有効にする
+  overlap_sec: 2.0   # オーバーラップ時間（秒）
+  curve: "tri"       # カーブタイプ (tri, qsin, esin, hsin, log, ipar, qua, cub, squ, cbr)
+
+# 出力設定
+output:
+  codec: "aac"       # 出力コーデック (aac, libmp3lame, pcm_s16le)
+  sample_rate: 48000 # サンプリング周波数
+  format: "wav"      # 出力形式 (wav, mp3, m4a)
+
+# パス設定
+paths:
+  ffmpeg: null       # FFmpegパス（nullで自動検出）
+  cache_dir: "./_cache"  # キャッシュディレクトリ
+
+# GUI設定
+gui:
+  window_size: [1000, 700]  # ウィンドウサイズ [幅, 高さ]
+  remember_settings: true   # 設定を記憶する
+  auto_clear_log: false     # ログを自動クリア
+
+# プリセット定義
+presets:
+  podcast:
+    normalize:
+      lufs: -16.0
+      tp: -1.5
+    fade:
+      enabled: true
+      in_ms: 500
+      out_ms: 2000
+      from_end_sec: 3.0
+    output:
+      codec: "libmp3lame"
+      format: "mp3"
+
+  bgm:
+    normalize:
+      lufs: -18.0
+      tp: -1.5
+    fade:
+      enabled: true
+      in_ms: 1000
+      out_ms: 3000
+      from_end_sec: 4.0
+    crossfade:
+      enabled: true
+      overlap_sec: 3.0
+    output:
+      codec: "aac"
+      format: "wav"
+
+  broadcast:
+    normalize:
+      lufs: -23.0
+      tp: -1.0
+    fade:
+      enabled: true
+      in_ms: 300
+      out_ms: 1000
+      from_end_sec: 2.0
+    output:
+      codec: "pcm_s16le"
+      format: "wav"
