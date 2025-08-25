@@ -17,6 +17,15 @@ import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 
+import os
+import sys
+import json
+import shutil
+from pathlib import Path
+from typing import List, Dict, Optional
+import logging
+from datetime import datetime
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPushButton, QFileDialog, QSpinBox, QDoubleSpinBox, QLabel,
@@ -142,9 +151,26 @@ class NormalizeTab(QWidget):
             "BGM (-18 LUFS)",
             "BGM (-19 LUFS)",
             "BGM (-20 LUFS)",
-            "放送 (-23 LUFS)"
+            "放送 (-23 LUFS)",
+            "参照ファイル"
         ])
+        self.preset_combo.currentIndexChanged.connect(self.on_preset_changed)
         settings_layout.addRow("プリセット:", self.preset_combo)
+
+        # 参照ファイル設定
+        self.reference_file_edit = QLabel("参照ファイルが選択されていません")
+        btn_reference_file = QPushButton("選択")
+        btn_reference_file.clicked.connect(self.select_reference_file)
+
+        self.reference_file_layout = QHBoxLayout()
+        self.reference_file_layout.addWidget(self.reference_file_edit)
+        self.reference_file_layout.addWidget(btn_reference_file)
+
+        self.reference_file_widget = QWidget()
+        self.reference_file_widget.setLayout(self.reference_file_layout)
+
+        settings_layout.addRow("参照ファイル:", self.reference_file_widget)
+        self.reference_file_form_row = settings_layout.rowCount() - 1
 
         self.format_combo = QComboBox()
         self.format_combo.addItems(["WAV", "MP3", "M4A"])
@@ -250,6 +276,32 @@ class NormalizeTab(QWidget):
 
         # 初期状態設定
         self.on_mode_changed()
+        self.on_preset_changed()  # 参照ファイル機能の初期表示制御
+
+    def select_reference_file(self):
+        """参照ファイルを選択"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "参照ファイルを選択", "",
+            "Audio Files (*.wav *.mp3 *.m4a *.flac);;All Files (*)"
+        )
+        if file_path:
+            self.reference_file_edit.setText(file_path)
+
+    def on_preset_changed(self):
+        """プリセット変更時の処理"""
+        is_reference = self.preset_combo.currentIndex() == 5  # 参照ファイルは6番目（インデックス5）
+
+        # 参照ファイル行の表示制御
+        settings_layout = self.settings_group.layout()
+        label_widget = settings_layout.itemAt(
+            self.reference_file_form_row, QFormLayout.LabelRole)
+        field_widget = settings_layout.itemAt(
+            self.reference_file_form_row, QFormLayout.FieldRole)
+
+        if label_widget and label_widget.widget():
+            label_widget.widget().setVisible(is_reference)
+        if field_widget and field_widget.widget():
+            field_widget.widget().setVisible(is_reference)
 
     def select_input_dir(self):
         """入力フォルダを選択"""
@@ -371,6 +423,9 @@ class NormalizeTab(QWidget):
             QMessageBox.warning(self, "警告", "出力フォルダを選択してください")
             return
 
+        # ログファイルのパスを更新
+        self.main_window.update_log_file_path(output_dir)
+
         self.main_window.log_message(f"測定処理開始: {len(files)}ファイル")
 
         def measure_task():
@@ -438,6 +493,7 @@ class NormalizeTab(QWidget):
                 },
                 "preset_index": self.preset_combo.currentIndex(),
                 "preset_name": self.preset_combo.currentText(),
+                "reference_file": self.reference_file_edit.text() if hasattr(self, 'reference_file_edit') else "",
                 "output_format": self.format_combo.currentText(),
                 "saved_at": str(Path().cwd())
             }
@@ -500,14 +556,20 @@ class NormalizeTab(QWidget):
                 if 0 <= preset_idx < self.preset_combo.count():
                     self.preset_combo.setCurrentIndex(preset_idx)
 
+            if "reference_file" in config and hasattr(self, 'reference_file_edit'):
+                ref_file = config["reference_file"]
+                if ref_file and ref_file != "参照ファイルが選択されていません":
+                    self.reference_file_edit.setText(ref_file)
+
             if "output_format" in config:
                 format_text = config["output_format"]
                 format_idx = self.format_combo.findText(format_text)
                 if format_idx >= 0:
                     self.format_combo.setCurrentIndex(format_idx)
 
-            # モード変更を反映
+            # モード変更とプリセット変更を反映
             self.on_mode_changed()
+            self.on_preset_changed()
 
             QMessageBox.information(self, "設定読込", f"設定が読み込まれました:\n{file_path}")
             self.main_window.log_message(f"設定を読み込みました: {file_path}")
@@ -523,15 +585,49 @@ class NormalizeTab(QWidget):
             QMessageBox.warning(self, "警告", "出力フォルダを選択してください")
             return
 
+        # ログファイルのパスを更新
+        self.main_window.update_log_file_path(output_dir)
+
         # プリセット設定を取得
-        preset_map = {
-            0: -16.0,  # ポッドキャスト
-            1: -18.0,  # BGM -18
-            2: -19.0,  # BGM -19
-            3: -20.0,  # BGM -20
-            4: -23.0   # 放送
-        }
-        target_lufs = preset_map.get(self.preset_combo.currentIndex(), -16.0)
+        preset_index = self.preset_combo.currentIndex()
+
+        if preset_index == 5:  # 参照ファイル
+            reference_file = self.reference_file_edit.text()
+            if reference_file == "参照ファイルが選択されていません":
+                QMessageBox.warning(self, "警告", "参照ファイルを選択してください")
+                return
+
+            # 参照ファイルのラウドネスを測定
+            self.main_window.log_message(
+                f"参照ファイルのラウドネスを測定中: {Path(reference_file).name}")
+
+            try:
+                from audioops.loudsync_legacy import measure_loudness, find_ffmpeg
+                ffmpeg_path = find_ffmpeg()
+                ref_result = measure_loudness(reference_file, ffmpeg_path)
+
+                if ref_result['status'] != 'OK':
+                    QMessageBox.critical(
+                        self, "エラー", f"参照ファイルの測定に失敗しました: {ref_result['status']}")
+                    return
+
+                target_lufs = ref_result['integrated_lufs']
+                self.main_window.log_message(
+                    f"参照ファイルのラウドネス: {target_lufs:.1f} LUFS")
+
+            except Exception as e:
+                QMessageBox.critical(self, "エラー", f"参照ファイルの測定エラー: {str(e)}")
+                return
+        else:
+            # 固定プリセット
+            preset_map = {
+                0: -16.0,  # ポッドキャスト
+                1: -18.0,  # BGM -18
+                2: -19.0,  # BGM -19
+                3: -20.0,  # BGM -20
+                4: -23.0   # 放送
+            }
+            target_lufs = preset_map.get(preset_index, -16.0)
 
         # 出力形式設定
         format_map = {"WAV": "wav", "MP3": "mp3", "M4A": "m4a"}
@@ -759,6 +855,9 @@ class FadeTab(QWidget):
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
+        # ログファイルのパスを更新
+        self.main_window.update_log_file_path(output_dir)
+
         self.main_window.log_message(f"フェード処理開始: {len(files)}ファイル")
 
         def fade_task():
@@ -956,8 +1055,58 @@ class LoudSyncSuiteMainWindow(QMainWindow):
         # 設定
         self.config_path = "config.json"
 
+        # ログ設定の初期化
+        self.log_file_path = None
+        self.setup_logging()
+
         self.setup_ui()
         self.load_settings()
+
+    def setup_logging(self):
+        """ログ設定を初期化"""
+        # デフォルトの出力ディレクトリは normalized フォルダ
+        default_output_dir = Path("normalized")
+        default_output_dir.mkdir(parents=True, exist_ok=True)
+
+        self.log_file_path = default_output_dir / "LoudSync.log"
+
+        # ログファイルのハンドラを設定
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+
+        # ファイルハンドラを追加
+        self.file_handler = logging.FileHandler(
+            self.log_file_path, encoding='utf-8')
+        self.file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter(
+            '%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        self.file_handler.setFormatter(formatter)
+
+        # ルートロガーにハンドラを追加
+        logging.getLogger().addHandler(self.file_handler)
+
+    def update_log_file_path(self, output_dir: str):
+        """ログファイルのパスを更新"""
+        if output_dir and output_dir != "出力フォルダが選択されていません":
+            new_log_path = Path(output_dir) / "LoudSync.log"
+            if new_log_path != self.log_file_path:
+                # 古いハンドラを削除
+                if hasattr(self, 'file_handler'):
+                    logging.getLogger().removeHandler(self.file_handler)
+                    self.file_handler.close()
+
+                # 新しいハンドラを設定
+                self.log_file_path = new_log_path
+                self.file_handler = logging.FileHandler(
+                    self.log_file_path, encoding='utf-8')
+                self.file_handler.setLevel(logging.INFO)
+                formatter = logging.Formatter(
+                    '%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+                self.file_handler.setFormatter(formatter)
+                logging.getLogger().addHandler(self.file_handler)
 
     def setup_ui(self):
         # 中央ウィジェット
@@ -1014,10 +1163,16 @@ class LoudSyncSuiteMainWindow(QMainWindow):
         self.log_message("LoudSync Suite を開始しました")
 
     def log_message(self, message: str):
-        """ログメッセージを追加"""
+        """ログメッセージを追加（GUI表示とファイル出力）"""
         from datetime import datetime
         timestamp = datetime.now().strftime("%H:%M:%S")
-        self.log_text.append(f"[{timestamp}] {message}")
+        gui_message = f"[{timestamp}] {message}"
+
+        # GUIのログエリアに表示
+        self.log_text.append(gui_message)
+
+        # ファイルにも出力
+        logging.info(message)
 
     def on_process_finished(self, success: bool, message: str):
         """処理完了時のハンドラ"""
@@ -1073,6 +1228,13 @@ class LoudSyncSuiteMainWindow(QMainWindow):
                                 preset_idx)
                             self.log_message(f"プリセットを復元: {preset_idx}")
 
+                    if "reference_file" in settings and hasattr(self.normalize_tab, 'reference_file_edit'):
+                        ref_file = settings["reference_file"]
+                        if ref_file and ref_file != "参照ファイルが選択されていません":
+                            self.normalize_tab.reference_file_edit.setText(
+                                ref_file)
+                            self.log_message(f"参照ファイルを復元: {ref_file}")
+
                     if "output_format" in settings:
                         format_text = settings["output_format"]
                         format_idx = self.normalize_tab.format_combo.findText(
@@ -1088,8 +1250,10 @@ class LoudSyncSuiteMainWindow(QMainWindow):
                         self.setGeometry(geo.get("x", 100), geo.get("y", 100),
                                          geo.get("width", 1000), geo.get("height", 700))
 
-                    # モード変更を反映
+                    # モード変更とプリセット変更を反映
                     self.normalize_tab.on_mode_changed()
+                    if hasattr(self.normalize_tab, 'on_preset_changed'):
+                        self.normalize_tab.on_preset_changed()
 
                 self.log_message("設定を正常に読み込みました")
             except Exception as e:
@@ -1113,6 +1277,7 @@ class LoudSyncSuiteMainWindow(QMainWindow):
                     },
                     "preset_index": self.normalize_tab.preset_combo.currentIndex(),
                     "preset_name": self.normalize_tab.preset_combo.currentText(),
+                    "reference_file": getattr(self.normalize_tab, 'reference_file_edit', QLabel()).text(),
                     "output_format": self.normalize_tab.format_combo.currentText(),
                     "saved_at": str(Path().cwd()),
                     "window_geometry": {
@@ -1132,6 +1297,12 @@ class LoudSyncSuiteMainWindow(QMainWindow):
     def closeEvent(self, event):
         """終了時の処理"""
         self.save_settings()
+
+        # ログハンドラをクリーンアップ
+        if hasattr(self, 'file_handler'):
+            logging.getLogger().removeHandler(self.file_handler)
+            self.file_handler.close()
+
         event.accept()
 
 
